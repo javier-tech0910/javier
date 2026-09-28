@@ -1,0 +1,7 @@
+1) Abre MySQL Workbench.
+2) Selecciona la base vibra.
+3) Si VIBRA ya existe con usuarios/publicaciones, ejecuta upgrade_vibra.sql UNA VEZ.
+4) Si quieres una instalación desde cero, usa schema_nuevo.sql en una base vacía.
+5) No borres tu base actual si quieres conservar usuarios y publicaciones.
+6) Copia .env.example a .env y revisa usuario/contraseña de MySQL.
+7) Ejecuta instalar.bat y después iniciar.bat.

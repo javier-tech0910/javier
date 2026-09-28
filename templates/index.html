@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Inicio · VIBRA{% endblock %}
+{% block content %}
+<section class="feed">
+    <div class="feed-head">
+        <div>
+            <span class="eyebrow">TU MUNDO</span>
+            <h1>Tu VIBRA</h1>
+        </div>
+        <a class="icon-btn" href="{{ url_for('crear_historia') }}">＋ Historia</a>
+    </div>
+
+    <div class="stories">
+        <a class="story add" href="{{ url_for('crear_historia') }}">
+            <span class="story-ring"><span>＋</span></span>
+            <small>Tu historia</small>
+        </a>
+
+        {% for h in historias %}
+        <button class="story story-open" type="button"
+                data-story-id="{{ h.id }}"
+                data-story-type="{{ h.tipo }}"
+                data-story-src="{{ url_for('uploads', filename=h.archivo) }}"
+                data-story-text="{{ h.texto or '' }}"
+                data-story-user="{{ h.username or h.nombre }}">
+            <span class="story-ring">
+                {% if h.tipo == 'video' %}
+                    <video src="{{ url_for('uploads', filename=h.archivo) }}" muted playsinline preload="metadata"></video>
+                {% else %}
+                    <img src="{{ url_for('uploads', filename=h.archivo) }}" alt="Historia de {{ h.username or h.nombre }}">
+                {% endif %}
+            </span>
+            <small>{{ h.username or h.nombre }}</small>
+        </button>
+        {% endfor %}
+    </div>
+
+    {% for p in publicaciones %}
+    <article class="post publicacion" data-publicacion-id="{{ p.id }}">
+        <header class="post-head">
+            <a class="user-link" href="{{ url_for('perfil_usuario', usuario_id=p.usuario_id) }}">
+                {% if p.foto_perfil %}
+                    <img class="avatar" src="{{ url_for('uploads', filename=p.foto_perfil) }}" alt="Foto de perfil">
+                {% else %}
+                    <span class="avatar avatar-fallback">{{ p.nombre[0]|upper }}</span>
+                {% endif %}
+                <span>
+                    <strong>{{ p.username or p.nombre }}</strong>
+                    <small>{{ p.fecha.strftime('%d/%m/%Y %H:%M') }}</small>
+                </span>
+            </a>
+
+            <div class="post-menu-wrap">
+                <button class="dots post-menu-button" type="button" aria-label="Opciones de publicación">•••</button>
+                <div class="post-menu">
+                    <a href="{{ url_for('ver_publicacion', publicacion_id=p.id) }}">Ver publicación</a>
+                    <button class="copiar-enlace" type="button" data-url="{{ url_for('ver_publicacion', publicacion_id=p.id, _external=True) }}">Copiar enlace</button>
+                    {% if yo and p.usuario_id == yo.id %}
+                    <button class="eliminar-publicacion danger" type="button" data-publicacion-id="{{ p.id }}">Eliminar publicación</button>
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+
+        <a href="{{ url_for('ver_publicacion', publicacion_id=p.id) }}" class="media-wrap">
+            {% if p.tipo == 'video' %}
+                <video class="post-media" src="{{ url_for('uploads', filename=p.video) }}" controls playsinline preload="metadata"></video>
+            {% else %}
+                <img class="post-media" src="{{ url_for('uploads', filename=p.imagen) }}" alt="Publicación de {{ p.nombre }}">
+            {% endif %}
+        </a>
+
+        {% if p.musica_archivo %}
+        <div class="music-chip">
+            <span>♫</span>
+            <div>
+                <strong>{{ p.musica_titulo }}</strong>
+                <small>{{ p.musica_artista }}</small>
+            </div>
+            <audio controls src="{{ url_for('music_file', filename=p.musica_archivo) }}"></audio>
+        </div>
+        {% endif %}
+
+        <div class="post-actions">
+            <button class="boton-like action {% if p.usuario_dio_like %}liked{% endif %}" type="button">
+                {{ '♥' if p.usuario_dio_like else '♡' }} <span class="contador-likes">{{ p.cantidad_likes }}</span>
+            </button>
+            <button class="boton-comentarios action" type="button">◌ <span>{{ p.comentarios|length }}</span></button>
+            <button class="action copiar-enlace-action" type="button" data-url="{{ url_for('ver_publicacion', publicacion_id=p.id, _external=True) }}">↗</button>
+            <button class="boton-guardar action {% if p.guardado %}saved{% endif %}" type="button">{{ '▣' if p.guardado else '□' }}</button>
+        </div>
+
+        <div class="post-body">
+            {% if p.descripcion %}
+                <p><strong>{{ p.username or p.nombre }}</strong> {{ p.descripcion }}</p>
+            {% endif %}
+            {% if p.hashtags %}
+                <p class="hashtags">{{ p.hashtags }}</p>
+            {% endif %}
+            {% if p.ubicacion %}
+                <small class="muted">⌖ {{ p.ubicacion }}</small>
+            {% endif %}
+
+            <div class="comentarios" style="display:none">
+                <div class="lista-comentarios">
+                    {% for c in p.comentarios %}
+                    <div class="comentario">
+                        <span class="avatar avatar-sm">
+                            {% if c.foto_perfil %}
+                                <img src="{{ url_for('uploads', filename=c.foto_perfil) }}" alt="Foto de perfil">
+                            {% else %}
+                                {{ c.nombre[0]|upper }}
+                            {% endif %}
+                        </span>
+                        <div>
+                            <strong>{{ c.username or c.nombre }}</strong> {{ c.comentario }}
+                            <small>{{ c.fecha.strftime('%d/%m %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="comment-box">
+                    <input class="input-comentario" placeholder="Escribe un comentario..." maxlength="500">
+                    <button class="boton-publicar-comentario" type="button">Enviar</button>
+                </div>
+            </div>
+        </div>
+    </article>
+    {% else %}
+    <div class="empty-card">
+        <span class="brand-mark big">V</span>
+        <h2>Tu feed está esperando su primera VIBRA.</h2>
+        <p>Publica una foto o video y empieza a construir tu comunidad.</p>
+        <a class="red-btn" href="{{ url_for('crear_publicacion') }}">Crear publicación</a>
+    </div>
+    {% endfor %}
+</section>
+
+<div class="story-viewer" id="storyViewer" aria-hidden="true">
+    <button class="story-viewer-close" id="storyViewerClose" type="button" aria-label="Cerrar historia">×</button>
+    <button class="story-viewer-nav prev" id="storyPrev" type="button" aria-label="Historia anterior">‹</button>
+    <div class="story-viewer-card">
+        <div class="story-viewer-head"><strong id="storyViewerUser">VIBRA</strong><span>Historia</span></div>
+        <div class="story-viewer-media" id="storyViewerMedia"></div>
+        <p id="storyViewerText"></p>
+    </div>
+    <button class="story-viewer-nav next" id="storyNext" type="button" aria-label="Historia siguiente">›</button>
+</div>
+{% endblock %}

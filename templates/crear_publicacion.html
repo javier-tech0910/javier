@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Crear · VIBRA{% endblock %}
+{% block content %}
+<section class="create-page">
+    <div class="create-hero">
+        <div>
+            <span class="eyebrow">NUEVA PUBLICACIÓN</span>
+            <h1>Comparte tu VIBRA</h1>
+            <p>Sube una imagen o un video y dale tu propio estilo.</p>
+        </div>
+        <div class="create-hero-mark">✦</div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="createForm" class="create-form">
+        <div class="media-section-head">
+            <div>
+                <h2>Contenido</h2>
+                <p>Elige una sola opción. Podrás verla antes de publicar.</p>
+            </div>
+            <span class="media-status" id="mediaStatus">Sin archivo</span>
+        </div>
+
+        <div class="upload-grid modern-upload-grid">
+            <label class="upload-box modern-upload-box" data-upload-card="image">
+                <input type="file" name="imagen" accept="image/png,image/jpeg,image/webp,image/gif" class="file-input" id="imageInput">
+                <div class="upload-empty" id="imageEmpty">
+                    <span class="upload-icon modern-icon">▧</span>
+                    <strong>Subir imagen</strong>
+                    <small>JPG, PNG, WEBP o GIF</small>
+                    <span class="file-picker">Elegir imagen</span>
+                    <span class="file-name" id="imageName">Ninguna imagen seleccionada</span>
+                </div>
+                <div class="media-preview" id="imagePreview" hidden>
+                    <img alt="Vista previa de la imagen">
+                    <div class="preview-overlay">
+                        <span>Cambiar imagen</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="upload-box modern-upload-box" data-upload-card="video">
+                <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" class="file-input" id="videoInput">
+                <div class="upload-empty" id="videoEmpty">
+                    <span class="upload-icon modern-icon">▶</span>
+                    <strong>Subir video</strong>
+                    <small>MP4, WEBM, MOV o M4V</small>
+                    <span class="file-picker">Elegir video</span>
+                    <span class="file-name" id="videoName">Ningún video seleccionado</span>
+                </div>
+                <div class="media-preview" id="videoPreview" hidden>
+                    <video muted playsinline controls></video>
+                    <div class="preview-overlay">
+                        <span>Cambiar video</span>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <div class="create-note modern-note">
+            <span>💡</span>
+            <div>
+                <strong>Un archivo por publicación</strong>
+                <p>Selecciona una imagen o un video. La vista previa aparecerá aquí antes de publicar.</p>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">
+                <h2>Detalles</h2>
+                <span>Opcional</span>
+            </div>
+
+            <label>
+                Descripción
+                <textarea name="descripcion" maxlength="500" placeholder="¿Qué estás viviendo? ¿Qué quieres compartir?"></textarea>
+                <small class="field-help"><span id="descriptionCount">0</span>/500 caracteres</small>
+            </label>
+
+            <div class="two-cols">
+                <label>
+                    Ubicación
+                    <input name="ubicacion" maxlength="150" placeholder="Ej: Santiago, Chile">
+                </label>
+                <label>
+                    Hashtags
+                    <input name="hashtags" maxlength="500" placeholder="#anime #gaming #musica">
+                </label>
+            </div>
+
+            <label>
+                Música para la publicación
+                <select name="musica_id">
+                    <option value="">♫ Sin música</option>
+                    {% for c in canciones %}
+                    <option value="{{ c.id }}">♫ {{ c.titulo }} — {{ c.artista }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+
+        <div class="form-actions modern-actions">
+            <a class="ghost-btn" href="{{ url_for('inicio') }}">Cancelar</a>
+            <button class="red-btn create-submit" type="submit" id="publishButton">
+                <span>Publicar en VIBRA</span>
+                <span>→</span>
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}
