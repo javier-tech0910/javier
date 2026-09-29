@@ -262,24 +262,111 @@ document.addEventListener('DOMContentLoaded', () => {
     description?.addEventListener('input', () => { descriptionCount.textContent = description.value.length; });
     description?.dispatchEvent(new Event('input'));
 
-    createForm.addEventListener('submit', e => {
-        const hasImage = !!imageInput.files?.length;
-        const hasVideo = !!videoInput.files?.length;
-        if (!hasImage && !hasVideo) {
-            e.preventDefault();
-            showCreateToast('Selecciona una imagen o un video antes de publicar.');
-            return;
-        }
-        const button = document.getElementById('publishButton');
-        if (button) { button.disabled = true; button.style.opacity = '.65'; button.querySelector('span').textContent = 'Publicando…'; }
-    });
+createForm.addEventListener('submit', async e => {
+    const hasImage = !!imageInput.files?.length;
+    const hasVideo = !!videoInput.files?.length;
 
-    function showCreateToast(message) {
-        let toast = document.getElementById('vibraCreateToast');
-        if (!toast) { toast = document.createElement('div'); toast.id = 'vibraCreateToast'; toast.className = 'vibra-toast'; document.body.appendChild(toast); }
-        toast.textContent = message;
-        toast.classList.add('show');
-        clearTimeout(window.__vibraCreateToastTimer);
-        window.__vibraCreateToastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    if (!hasImage && !hasVideo) {
+        e.preventDefault();
+        showCreateToast('Selecciona una imagen o un video antes de publicar.');
+        return;
     }
+
+    // Si es una imagen, dejamos el formulario funcionando como antes.
+    if (hasImage && !hasVideo) {
+        const button = document.getElementById('publishButton');
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = '.65';
+            button.querySelector('span').textContent = 'Publicando…';
+        }
+        return;
+    }
+
+    // Si es video, NO lo enviamos a Flask.
+    if (hasVideo) {
+        e.preventDefault();
+
+        const button = document.getElementById('publishButton');
+
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = '.65';
+            button.querySelector('span').textContent = 'Subiendo video…';
+        }
+
+        try {
+            const video = videoInput.files[0];
+
+            // 1. Pedimos a Flask una URL temporal para el Bucket.
+            const response = await fetch('/api/video-upload-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename: video.name,
+                    content_type: video.type || 'video/mp4'
+                })
+            });
+
+            const uploadData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(uploadData.error || 'No se pudo preparar la subida.');
+            }
+
+            // 2. Subimos el video directamente al Bucket.
+            if (button) {
+                button.querySelector('span').textContent = 'Subiendo video…';
+            }
+
+            const uploadResponse = await fetch(uploadData.url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': video.type || 'video/mp4'
+                },
+                body: video
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('El Bucket rechazó la subida del video.');
+            }
+
+            // 3. Creamos el FormData SIN el archivo de video.
+            const formData = new FormData(createForm);
+
+            formData.delete('video');
+            formData.append('video_key', uploadData.key);
+
+            if (button) {
+                button.querySelector('span').textContent = 'Publicando…';
+            }
+
+            // 4. Flask recibe solamente la referencia al video.
+            const publishResponse = await fetch(createForm.action, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!publishResponse.ok) {
+                throw new Error('No se pudo crear la publicación.');
+            }
+
+            // 5. Volvemos a la página principal.
+            window.location.href = publishResponse.url;
+
+        } catch (error) {
+            console.error('Error subiendo video:', error);
+
+            if (button) {
+                button.disabled = false;
+                button.style.opacity = '';
+                button.querySelector('span').textContent = 'Publicar';
+            }
+
+            showCreateToast(error.message || 'Error al subir el video.');
+        }
+    }
+});
 });

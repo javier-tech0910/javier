@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
+load_dotenv()
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_REGION = os.getenv('S3_REGION')
@@ -22,7 +23,7 @@ s3 = boto3.client(
     aws_secret_access_key=S3_SECRET_ACCESS_KEY
 )
 
-load_dotenv()
+
 app = Flask(__name__)
 app.secret_key = os.getenv('VIBRA_SECRET_KEY', 'vibra-dev-change-me')
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -129,15 +130,55 @@ def editar_perfil():
         cur.close(); c.close(); return redirect(url_for('perfil'))
     return render_template('editar_perfil.html',usuario=current_user())
 
+@app.route('/api/video-upload-url', methods=['POST'])
+def video_upload_url():
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    data = request.get_json(silent=True) or {}
+    filename = data.get('filename', '')
+    content_type = data.get('content_type', 'video/mp4')
+
+    if not filename:
+        return jsonify({'error': 'Falta el nombre del archivo'}), 400
+
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+    if ext not in ALLOWED_VIDEOS:
+        return jsonify({'error': 'Formato de video no permitido'}), 400
+
+    key = f"videos/{session['usuario_id']}/{uuid.uuid4().hex}.{ext}"
+
+    try:
+        url = s3.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': S3_BUCKET_NAME,
+                'Key': key,
+                'ContentType': content_type
+            },
+            ExpiresIn=3600,
+            HttpMethod='PUT'
+        )
+
+        return jsonify({
+            'url': url,
+            'key': key
+        })
+
+    except Exception as e:
+        print('Error generando URL S3:', e)
+        return jsonify({'error': 'No se pudo preparar la subida'}), 500
+
 @app.route('/crear-publicacion',methods=['GET','POST'])
 def crear_publicacion():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     c=db(); cur=c.cursor(dictionary=True); cur.execute('SELECT * FROM canciones ORDER BY fecha DESC'); canciones=cur.fetchall(); cur.close(); c.close()
     if request.method=='POST':
-        imagen=request.files.get('imagen'); video=request.files.get('video'); tipo='video' if video and video.filename else 'imagen'; img=save_file(imagen,UPLOAD_FOLDER,ALLOWED_IMAGES); vid=save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS); desc=request.form.get('descripcion','').strip(); ubic=request.form.get('ubicacion','').strip(); hashtags=request.form.get('hashtags','').strip(); musica=request.form.get('musica_id') or None
-        if tipo=='imagen' and not img: flash('Selecciona una imagen.','error'); return render_template('crear_publicacion.html',canciones=canciones)
-        if tipo=='video' and not vid: flash('Video no válido. Usa MP4, WEBM o MOV.','error'); return render_template('crear_publicacion.html',canciones=canciones)
-        c=db(); cur=c.cursor(); cur.execute('INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
+       imagen=request.files.get('imagen'); video=request.files.get('video'); video_key=request.form.get('video_key'); tipo='video' if video_key or (video and video.filename) else 'imagen'; img=save_file(imagen,UPLOAD_FOLDER,ALLOWED_IMAGES); vid=video_key or save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS); desc=request.form.get('descripcion','').strip(); ubic=request.form.get('ubicacion','').strip(); hashtags=request.form.get('hashtags','').strip(); musica=request.form.get('musica_id') or None
+       if tipo=='imagen' and not img: flash('Selecciona una imagen.','error'); return render_template('crear_publicacion.html',canciones=canciones)
+       if tipo=='video' and not vid: flash('Video no válido. Usa MP4, WEBM o MOV.','error'); return render_template('crear_publicacion.html',canciones=canciones)
+       c=db(); cur=c.cursor(); cur.execute('INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
     return render_template('crear_publicacion.html',canciones=canciones)
 
 @app.route('/publicacion/<int:publicacion_id>')
