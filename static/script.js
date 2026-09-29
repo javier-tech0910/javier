@@ -361,14 +361,28 @@ if (!uploadResponse.ok) {
             }
 
             // 4. Flask recibe solamente la referencia al video.
-            const publishResponse = await fetch(createForm.action, {
-                method: 'POST',
-                body: formData
-            });
+const publishResponse = await fetch(createForm.action, {
+    method: 'POST',
+    body: formData
+});
 
-            if (!publishResponse.ok) {
-                throw new Error('No se pudo crear la publicación.');
-            }
+if (!publishResponse.ok) {
+    try {
+        await fetch('/api/video-delete-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                key: uploadData.key
+            })
+        });
+    } catch (cleanupError) {
+        console.error('No se pudo limpiar el video temporal:', cleanupError);
+    }
+
+    throw new Error('No se pudo crear la publicación.');
+}
 
             // 5. Volvemos a la página principal.
             window.location.href = publishResponse.url;

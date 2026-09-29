@@ -181,6 +181,32 @@ def crear_publicacion():
        c=db(); cur=c.cursor(); cur.execute('INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
     return render_template('crear_publicacion.html',canciones=canciones)
 
+@app.route('/api/video-delete-upload', methods=['POST'])
+def video_delete_upload():
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    data = request.get_json(silent=True) or {}
+    key = data.get('key', '')
+
+    usuario_id = str(session['usuario_id'])
+    prefijo = f"videos/{usuario_id}/"
+
+    # Solo permitimos borrar videos temporales del usuario actual.
+    if not key.startswith(prefijo):
+        return jsonify({'error': 'Archivo no permitido'}), 403
+
+    try:
+        s3.delete_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=key
+        )
+        return jsonify({'ok': True})
+
+    except Exception as e:
+        print('Error eliminando video temporal:', e)
+        return jsonify({'error': 'No se pudo eliminar el video'}), 500
+
 @app.route('/publicacion/<int:publicacion_id>')
 def ver_publicacion(publicacion_id):
     if 'usuario_id' not in session: return redirect(url_for('login'))
