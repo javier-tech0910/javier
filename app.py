@@ -332,11 +332,20 @@ def eliminar_publicacion(publicacion_id):
     if ok:
         for filename in (publicacion.get('imagen'),publicacion.get('video')):
             if filename:
-                path=os.path.join(app.config['UPLOAD_FOLDER'],filename)
-                try:
-                    if os.path.isfile(path): os.remove(path)
-                except OSError:
-                    pass
+                if filename.startswith('videos/'):
+                    try:
+                        s3.delete_object(
+                            Bucket=S3_BUCKET_NAME,
+                            Key=filename
+                            )
+                    except Exception as e:
+                        print('Error eliminando video del Bucket:', e)
+    else:
+        path=os.path.join(app.config['UPLOAD_FOLDER'],filename)
+        try:
+            if os.path.isfile(path): os.remove(path)
+        except OSError:
+            pass
 
     return jsonify(ok=ok)
 
