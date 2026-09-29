@@ -1,10 +1,26 @@
 from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory, jsonify, flash
 import mysql.connector
+import boto3
 import os, uuid, re
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+
+
+S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
+S3_REGION = os.getenv('S3_REGION')
+S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+S3_ACCESS_KEY_ID = os.getenv('S3_ACCESS_KEY_ID')
+S3_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
+
+s3 = boto3.client(
+    's3',
+    endpoint_url=S3_ENDPOINT_URL,
+    region_name=S3_REGION,
+    aws_access_key_id=S3_ACCESS_KEY_ID,
+    aws_secret_access_key=S3_SECRET_ACCESS_KEY
+)
 
 load_dotenv()
 app = Flask(__name__)
