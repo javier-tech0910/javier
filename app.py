@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from flask_wtf.csrf import CSRFProtect
 
 load_dotenv()
 
@@ -25,6 +26,11 @@ s3 = boto3.client(
 
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)
+@app.context_processor
+def csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return {'csrf_token': generate_csrf}
 app.secret_key = os.getenv('VIBRA_SECRET_KEY', 'vibra-dev-change-me')
 BASE = os.path.dirname(os.path.abspath(__file__))
 # En local se mantienen las carpetas actuales. En producción Railway puede

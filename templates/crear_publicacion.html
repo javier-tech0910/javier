@@ -12,6 +12,7 @@
     </div>
 
     <form method="post" enctype="multipart/form-data" id="createForm" class="create-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="media-section-head">
             <div>
                 <h2>Contenido</h2>

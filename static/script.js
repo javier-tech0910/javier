@@ -1,10 +1,17 @@
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
 document.addEventListener('DOMContentLoaded', () => {
     // Likes
     document.querySelectorAll('.boton-like').forEach(btn => btn.addEventListener('click', async () => {
         const post = btn.closest('.publicacion');
         if (!post) return;
         try {
-            const r = await fetch(`/like/${post.dataset.publicacionId}`, {method:'POST'});
+            const r = await fetch(`/like/${post.dataset.publicacionId}`, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': csrfToken
+    }
+});
             const d = await r.json();
             if (!r.ok) return;
             btn.classList.toggle('liked', d.liked);
@@ -17,7 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const post = btn.closest('.publicacion');
         if (!post) return;
         try {
-            const r = await fetch(`/guardar/${post.dataset.publicacionId}`, {method:'POST'});
+            const r = await fetch(`/guardar/${post.dataset.publicacionId}`, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': csrfToken
+    }
+});
             const d = await r.json();
             if (r.ok) {
                 btn.classList.toggle('saved', d.saved);
@@ -40,8 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!text) return;
         try {
             const r = await fetch(`/comentario/${p.dataset.publicacionId}`, {
-                method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({comentario:text})
-            });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({
+        comentario: text
+    })
+});
             const d = await r.json();
             if (!r.ok) return;
             const item = document.createElement('div');
@@ -56,7 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Seguir
     document.querySelectorAll('.boton-seguir').forEach(btn => btn.addEventListener('click', async () => {
         try {
-            const r = await fetch(`/seguir/${btn.dataset.usuarioId}`, {method:'POST'});
+            const r = await fetch(`/seguir/${btn.dataset.usuarioId}`, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': csrfToken
+    }
+});
             const d = await r.json();
             if (!r.ok) return;
             btn.textContent = d.siguiendo ? 'Dejar de seguir' : 'Seguir';
@@ -80,7 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = btn.dataset.publicacionId;
         if (!confirm('¿Seguro que quieres eliminar esta publicación? Esta acción no se puede deshacer.')) return;
         try {
-            const r = await fetch(`/api/publicacion/${id}/eliminar`, {method:'POST'});
+            const r = await fetch(`/api/publicacion/${id}/eliminar`, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': csrfToken
+    }
+});
             const d = await r.json();
             if (r.ok && d.ok) {
                 btn.closest('.publicacion')?.remove();
@@ -300,10 +329,11 @@ createForm.addEventListener('submit', async e => {
 
             // 1. Pedimos a Flask una URL temporal para el Bucket.
             const response = await fetch('/api/video-upload-url', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+    },
                 body: JSON.stringify({
                     filename: video.name,
                     content_type: video.type || 'video/mp4'
@@ -369,14 +399,15 @@ const publishResponse = await fetch(createForm.action, {
 if (!publishResponse.ok) {
     try {
         await fetch('/api/video-delete-upload', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                key: uploadData.key
-            })
-        });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({
+        key: uploadData.key
+    })
+})
     } catch (cleanupError) {
         console.error('No se pudo limpiar el video temporal:', cleanupError);
     }
