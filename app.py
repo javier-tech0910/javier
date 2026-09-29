@@ -274,10 +274,40 @@ def crear_publicacion():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     c=db(); cur=c.cursor(dictionary=True); cur.execute('SELECT * FROM canciones ORDER BY fecha DESC'); canciones=cur.fetchall(); cur.close(); c.close()
     if request.method=='POST':
-       imagen=request.files.get('imagen'); video=request.files.get('video'); video_key=request.form.get('video_key'); tipo='video' if video_key or (video and video.filename) else 'imagen'; img=save_image_to_bucket(imagen,'images'); vid=video_key or save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS); desc=request.form.get('descripcion','').strip(); ubic=request.form.get('ubicacion','').strip(); hashtags=request.form.get('hashtags','').strip(); musica=request.form.get('musica_id') or None
-       if tipo=='imagen' and not img: flash('Selecciona una imagen.','error'); return render_template('crear_publicacion.html',canciones=canciones)
-       if tipo=='video' and not vid: flash('Video no válido. Usa MP4, WEBM o MOV.','error'); return render_template('crear_publicacion.html',canciones=canciones)
-       c=db(); cur=c.cursor(); cur.execute('INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
+       imagen=request.files.get('imagen'); video=request.files.get('video'); video_key=request.form.get('video_key')
+       if video_key:
+           prefijo_video = f"videos/{session['usuario_id']}/"
+           if not video_key.startswith(prefijo_video):
+               flash('Video no válido.', 'error')
+               return render_template('crear_publicacion.html', canciones=canciones)
+
+       tipo='video' if video_key or (video and video.filename) else 'imagen'
+       img=save_image_to_bucket(imagen,'images')
+       vid=video_key or save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS)
+       desc=request.form.get('descripcion','').strip()
+       ubic=request.form.get('ubicacion','').strip()
+       hashtags=request.form.get('hashtags','').strip()
+       musica=request.form.get('musica_id') or None
+
+       if tipo=='imagen' and not img:
+           flash('Selecciona una imagen.','error')
+           return render_template('crear_publicacion.html',canciones=canciones)
+
+       if tipo=='video' and not vid:
+           flash('Video no válido. Usa MP4, WEBM o MOV.','error')
+           return render_template('crear_publicacion.html',canciones=canciones)
+
+       c=db()
+       cur=c.cursor()
+       cur.execute(
+           'INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',
+           (session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)
+       )
+       c.commit()
+       cur.close()
+       c.close()
+       return redirect(url_for('inicio'))
+
     return render_template('crear_publicacion.html',canciones=canciones)
 
 @app.route('/api/video-delete-upload', methods=['POST'])
