@@ -45,6 +45,27 @@ def save_file(file, folder, allowed):
     if not file or not file.filename or not ext_ok(file.filename, allowed): return None
     ext=file.filename.rsplit('.',1)[1].lower(); name=f'{uuid.uuid4().hex}.{ext}'; file.save(os.path.join(folder,name)); return name
 
+def save_image_to_bucket(file, folder_name):
+    if not file or not file.filename or not ext_ok(file.filename, ALLOWED_IMAGES):
+        return None
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    key = f"{folder_name}/{uuid.uuid4().hex}.{ext}"
+
+    try:
+        s3.upload_fileobj(
+            file,
+            S3_BUCKET_NAME,
+            key,
+            ExtraArgs={
+                'ContentType': file.content_type or 'image/jpeg'
+            }
+        )
+        return key
+    except Exception as e:
+        print('Error subiendo imagen al Bucket:', e)
+        return None
+
 def current_user():
     if 'usuario_id' not in session: return None
     c=db(); cur=c.cursor(dictionary=True); cur.execute('SELECT * FROM usuarios WHERE id=%s',(session['usuario_id'],)); u=cur.fetchone(); cur.close(); c.close(); return u
@@ -116,19 +137,91 @@ def perfil_usuario(usuario_id):
     cur.execute('SELECT p.*,c.titulo musica_titulo,c.artista musica_artista FROM publicaciones p LEFT JOIN canciones c ON c.id=p.musica_id WHERE p.usuario_id=%s ORDER BY p.fecha DESC',(usuario_id,)); posts=cur.fetchall(); cur.close(); c.close()
     return render_template('perfil_usuario.html',usuario=u,publicaciones=posts,siguiendo=siguiendo)
 
-@app.route('/editar-perfil',methods=['GET','POST'])
+@app.route('/editar-perfil', methods=['GET', 'POST'])
 def editar_perfil():
-    if 'usuario_id' not in session: return redirect(url_for('login'))
-    if request.method=='POST':
-        nombre=request.form.get('nombre','').strip(); username=request.form.get('username','').strip().lower(); desc=request.form.get('descripcion','').strip(); apoyo=request.form.get('link_apoyo','').strip(); portada=save_file(request.files.get('foto_portada'),UPLOAD_FOLDER,ALLOWED_IMAGES); avatar=save_file(request.files.get('foto_perfil'),UPLOAD_FOLDER,ALLOWED_IMAGES)
-        c=db(); cur=c.cursor(); fields=['nombre=%s','username=%s','descripcion=%s','link_apoyo=%s']; vals=[nombre,username,desc,apoyo]
-        if portada: fields.append('foto_portada=%s'); vals.append(portada)
-        if avatar: fields.append('foto_perfil=%s'); vals.append(avatar)
-        vals.append(session['usuario_id']);
-        try: cur.execute('UPDATE usuarios SET '+','.join(fields)+' WHERE id=%s',vals); c.commit(); flash('Perfil actualizado.','ok')
-        except mysql.connector.Error: c.rollback(); flash('No se pudo guardar. Revisa que el usuario no esté ocupado.','error')
-        cur.close(); c.close(); return redirect(url_for('perfil'))
-    return render_template('editar_perfil.html',usuario=current_user())
+    if 'usuario_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        username = request.form.get('username', '').strip().lower()
+        desc = request.form.get('descripcion', '').strip()
+        apoyo = request.form.get('link_apoyo', '').strip()
+
+        portada = save_image_to_bucket(
+            request.files.get('foto_portada'),
+            'covers'
+        )
+
+        avatar = save_image_to_bucket(
+            request.files.get('foto_perfil'),
+            'profiles'
+        )
+
+
+
+        c = db()
+        cur = c.cursor()
+
+        fields = [
+            'nombre=%s',
+            'username=%s',
+            'descripcion=%s',
+            'link_apoyo=%s'
+        ]
+
+        vals = [
+            nombre,
+            username,
+            desc,
+            apoyo
+        ]
+
+        if portada:
+            fields.append('foto_portada=%s')
+            vals.append(portada)
+
+        if avatar:
+            fields.append('foto_perfil=%s')
+            vals.append(avatar)
+
+        vals.append(session['usuario_id'])
+
+        try:
+            sql = 'UPDATE usuarios SET ' + ','.join(fields) + ' WHERE id=%s'
+
+
+
+            cur.execute(sql, vals)
+
+
+
+            c.commit()
+
+
+
+            flash('Perfil actualizado.', 'ok')
+
+        except mysql.connector.Error as e:
+            c.rollback()
+
+            print("ERROR MYSQL:", e)
+
+            flash(
+                'No se pudo guardar. Revisa que el usuario no esté ocupado.',
+                'error'
+            )
+
+        finally:
+            cur.close()
+            c.close()
+
+        return redirect(url_for('perfil'))
+
+    return render_template(
+        'editar_perfil.html',
+        usuario=current_user()
+    )
 
 @app.route('/api/video-upload-url', methods=['POST'])
 def video_upload_url():
@@ -175,7 +268,7 @@ def crear_publicacion():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     c=db(); cur=c.cursor(dictionary=True); cur.execute('SELECT * FROM canciones ORDER BY fecha DESC'); canciones=cur.fetchall(); cur.close(); c.close()
     if request.method=='POST':
-       imagen=request.files.get('imagen'); video=request.files.get('video'); video_key=request.form.get('video_key'); tipo='video' if video_key or (video and video.filename) else 'imagen'; img=save_file(imagen,UPLOAD_FOLDER,ALLOWED_IMAGES); vid=video_key or save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS); desc=request.form.get('descripcion','').strip(); ubic=request.form.get('ubicacion','').strip(); hashtags=request.form.get('hashtags','').strip(); musica=request.form.get('musica_id') or None
+       imagen=request.files.get('imagen'); video=request.files.get('video'); video_key=request.form.get('video_key'); tipo='video' if video_key or (video and video.filename) else 'imagen'; img=save_image_to_bucket(imagen,'images'); vid=video_key or save_file(video,UPLOAD_FOLDER,ALLOWED_VIDEOS); desc=request.form.get('descripcion','').strip(); ubic=request.form.get('ubicacion','').strip(); hashtags=request.form.get('hashtags','').strip(); musica=request.form.get('musica_id') or None
        if tipo=='imagen' and not img: flash('Selecciona una imagen.','error'); return render_template('crear_publicacion.html',canciones=canciones)
        if tipo=='video' and not vid: flash('Video no válido. Usa MP4, WEBM o MOV.','error'); return render_template('crear_publicacion.html',canciones=canciones)
        c=db(); cur=c.cursor(); cur.execute('INSERT INTO publicaciones(usuario_id,imagen,video,tipo,descripcion,ubicacion,hashtags,musica_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)',(session['usuario_id'],img,vid,tipo,desc,ubic,hashtags,musica)); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
@@ -274,7 +367,7 @@ def guardados():
 def crear_historia():
     if 'usuario_id' not in session: return redirect(url_for('login'))
     if request.method=='POST':
-        f=request.files.get('archivo'); img=save_file(f,UPLOAD_FOLDER,ALLOWED_IMAGES); vid=save_file(f,UPLOAD_FOLDER,ALLOWED_VIDEOS) if not img else None; archivo=img or vid
+        f=request.files.get('archivo'); img=save_image_to_bucket(f,'stories'); vid=save_file(f,UPLOAD_FOLDER,ALLOWED_VIDEOS) if not img else None; archivo=img or vid
         if not archivo: flash('Archivo no válido.','error'); return render_template('crear_historia.html')
         tipo='video' if vid else 'imagen'; texto=request.form.get('texto','').strip(); c=db(); cur=c.cursor(); cur.execute('INSERT INTO historias(usuario_id,archivo,tipo,texto,expira) VALUES(%s,%s,%s,%s,%s)',(session['usuario_id'],archivo,tipo,texto,datetime.now()+timedelta(hours=24))); c.commit(); cur.close(); c.close(); return redirect(url_for('inicio'))
     return render_template('crear_historia.html')
@@ -358,14 +451,14 @@ def eliminar_publicacion(publicacion_id):
     if ok:
         for filename in (publicacion.get('imagen'),publicacion.get('video')):
             if filename:
-                if filename.startswith('videos/'):
+                if filename.startswith(('videos/', 'images/')):
                     try:
                         s3.delete_object(
                             Bucket=S3_BUCKET_NAME,
                             Key=filename
                             )
                     except Exception as e:
-                        print('Error eliminando video del Bucket:', e)
+                        print('Error eliminando archivo del Bucket:', e)
     else:
         path=os.path.join(app.config['UPLOAD_FOLDER'],filename)
         try:
@@ -377,7 +470,9 @@ def eliminar_publicacion(publicacion_id):
 
 @app.route('/uploads/<path:filename>')
 def uploads(filename):
-    if filename.startswith('videos/'):
+    carpetas_bucket = ('videos/', 'profiles/', 'covers/', 'images/', 'stories/')
+
+    if filename.startswith(carpetas_bucket):
         try:
             url = s3.generate_presigned_url(
                 'get_object',
@@ -389,8 +484,8 @@ def uploads(filename):
             )
             return redirect(url)
         except Exception as e:
-            print('Error generando URL de video:', e)
-            return 'Video no disponible', 404
+            print('Error generando URL desde el Bucket:', e)
+            return 'Archivo no disponible', 404
 
     return send_from_directory(UPLOAD_FOLDER, filename)
 @app.route('/music/<path:filename>')
