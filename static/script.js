@@ -321,18 +321,35 @@ createForm.addEventListener('submit', async e => {
                 button.querySelector('span').textContent = 'Subiendo video…';
             }
 
-            const uploadResponse = await fetch(uploadData.url, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': video.type || 'video/mp4'
-                },
-                body: video
-            });
+const uploadResponse = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
 
-            if (!uploadResponse.ok) {
-                throw new Error('El Bucket rechazó la subida del video.');
-            }
+    xhr.open('PUT', uploadData.url, true);
+    xhr.setRequestHeader('Content-Type', video.type || 'video/mp4');
 
+    xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && button) {
+            const porcentaje = Math.round((event.loaded / event.total) * 100);
+            button.querySelector('span').textContent = `Subiendo video… ${porcentaje}%`;
+        }
+    };
+
+    xhr.onload = () => {
+        resolve({
+            ok: xhr.status >= 200 && xhr.status < 300
+        });
+    };
+
+    xhr.onerror = () => {
+        reject(new Error('No se pudo subir el video al Bucket.'));
+    };
+
+    xhr.send(video);
+});
+
+if (!uploadResponse.ok) {
+    throw new Error('El Bucket rechazó la subida del video.');
+}
             // 3. Creamos el FormData SIN el archivo de video.
             const formData = new FormData(createForm);
 
