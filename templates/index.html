@@ -64,7 +64,7 @@
 
         <a href="{{ url_for('ver_publicacion', publicacion_id=p.id) }}" class="media-wrap">
             {% if p.tipo == 'video' %}
-                <video class="post-media" src="{{ url_for('uploads', filename=p.video) }}" controls playsinline preload="metadata"></video>
+                <video class="post-media" src="{{ url_for('uploads', filename=p.video) }}" controls playsinline preload="metadata" controlslist="nodownload" disablepictureinpicture></video>
             {% else %}
                 <img class="post-media" src="{{ url_for('uploads', filename=p.imagen) }}" alt="Publicación de {{ p.nombre }}">
             {% endif %}
