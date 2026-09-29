@@ -157,7 +157,7 @@ def video_upload_url():
                 'Key': key,
                 'ContentType': content_type
             },
-            ExpiresIn=3600,
+            ExpiresIn=600,
             HttpMethod='PUT'
         )
 
