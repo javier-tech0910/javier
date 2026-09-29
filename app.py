@@ -341,7 +341,23 @@ def eliminar_publicacion(publicacion_id):
     return jsonify(ok=ok)
 
 @app.route('/uploads/<path:filename>')
-def uploads(filename): return send_from_directory(UPLOAD_FOLDER,filename)
+def uploads(filename):
+    if filename.startswith('videos/'):
+        try:
+            url = s3.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': S3_BUCKET_NAME,
+                    'Key': filename
+                },
+                ExpiresIn=3600
+            )
+            return redirect(url)
+        except Exception as e:
+            print('Error generando URL de video:', e)
+            return 'Video no disponible', 404
+
+    return send_from_directory(UPLOAD_FOLDER, filename)
 @app.route('/music/<path:filename>')
 def music_file(filename): return send_from_directory(MUSIC_FOLDER,filename)
 @app.route('/manifest.json')
